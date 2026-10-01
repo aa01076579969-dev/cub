@@ -1,0 +1,1500 @@
+<!DOCTYPE html>
+<html lang="ko" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>왕초보도 10분만에 맞추는 3D 큐브 해법 가이드</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Pretendard:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+    <!-- Three.js for 3D Graphics -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <!-- Canvas Confetti for Victory Effects -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        cubeBg: '#090d16',
+                        cubeCard: '#131c2e',
+                        cubePrimary: '#f59e0b',
+                        cubeAccent: '#10b981',
+                    },
+                    fontFamily: {
+                        sans: ['Pretendard', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            font-family: 'Pretendard', sans-serif;
+            user-select: none;
+            -webkit-user-select: none;
+            overflow-x: hidden;
+        }
+        canvas {
+            touch-action: none;
+        }
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0f172a;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #334155;
+            border-radius: 9999px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #475569;
+        }
+        .glow-btn {
+            transition: all 0.2s ease-in-out;
+        }
+        .glow-btn:hover {
+            box-shadow: 0 0 15px rgba(245, 158, 11, 0.4);
+            transform: translateY(-1px);
+        }
+        .toast-animate {
+            animation: slideDown 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+        @keyframes slideDown {
+            from { transform: translateY(-100%); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+        .book-tab-active {
+            border-left: 4px solid #f59e0b;
+            background: rgba(245, 158, 11, 0.15);
+            color: #fef08a;
+            font-weight: 700;
+        }
+        .mnemonic-badge {
+            background: linear-gradient(135deg, #f59e0b 0%, #ef4444 100%);
+        }
+    </style>
+</head>
+<body class="bg-cubeBg text-slate-100 min-h-screen flex flex-col justify-between">
+
+    <!-- Header Navigation -->
+    <header class="bg-slate-900/90 backdrop-blur border-b border-slate-800 sticky top-0 z-40 px-4 py-3 flex items-center justify-between">
+        <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-amber-400 via-rose-500 to-emerald-400 p-0.5 shadow-lg flex items-center justify-center">
+                <div class="w-full h-full bg-slate-950 rounded-[10px] flex items-center justify-center">
+                    <i class="fa-solid fa-cube text-amber-400 text-xl"></i>
+                </div>
+            </div>
+            <div>
+                <h1 class="font-extrabold text-base sm:text-lg tracking-tight bg-gradient-to-r from-amber-300 via-emerald-300 to-sky-400 bg-clip-text text-transparent">
+                    왕초보 3D 큐브 마스터 가이드
+                </h1>
+                <p class="text-xs text-slate-400">공식 암기 NO! "말품"으로 따라 하는 초간단 해법</p>
+            </div>
+        </div>
+
+        <nav class="hidden md:flex space-x-1 bg-slate-800/80 p-1 rounded-xl border border-slate-700/50">
+            <button onclick="switchMainTab('game')" id="mtab-game" class="main-tab-btn px-4 py-1.5 rounded-lg text-sm font-bold transition-all bg-amber-500 text-slate-950 shadow">
+                <i class="fa-solid fa-gamepad mr-1.5"></i>3D 실습 & 단계 가이드
+            </button>
+            <button onclick="switchMainTab('book')" id="mtab-book" class="main-tab-btn px-4 py-1.5 rounded-lg text-sm font-semibold text-slate-300 hover:text-white transition-all">
+                <i class="fa-solid fa-book-open mr-1.5 text-amber-400"></i>한눈에 보는 암기 비법
+            </button>
+            <button onclick="switchMainTab('trainer')" id="mtab-trainer" class="main-tab-btn px-4 py-1.5 rounded-lg text-sm font-semibold text-slate-300 hover:text-white transition-all">
+                <i class="fa-solid fa-hand-pointer mr-1.5 text-emerald-400"></i>기본 회전 익히기
+            </button>
+        </nav>
+
+        <div class="flex items-center space-x-2">
+            <button onclick="undoMove()" class="p-2 rounded-xl bg-slate-800 text-slate-300 hover:bg-slate-700 border border-slate-700 transition text-xs sm:text-sm flex items-center space-x-1" title="실행 취소">
+                <i class="fa-solid fa-rotate-left text-amber-400"></i>
+                <span class="hidden sm:inline">되돌리기</span>
+            </button>
+            <button onclick="redoMove()" class="p-2 rounded-xl bg-slate-800 text-slate-300 hover:bg-slate-700 border border-slate-700 transition text-xs sm:text-sm" title="다시 실행">
+                <i class="fa-solid fa-rotate-right text-sky-400"></i>
+            </button>
+            <button onclick="toggleAudio()" id="audio-toggle-btn" class="p-2 rounded-xl bg-slate-800 text-slate-300 hover:bg-slate-700 border border-slate-700 transition text-xs sm:text-sm" title="효과음">
+                <i class="fa-solid fa-volume-high text-emerald-400"></i>
+            </button>
+            <button onclick="setCameraView('iso')" class="p-2 rounded-xl bg-slate-800 text-slate-300 hover:bg-slate-700 border border-slate-700 transition text-xs sm:text-sm" title="정면 시점">
+                <i class="fa-solid fa-camera-retro"></i>
+            </button>
+        </div>
+    </header>
+
+    <!-- Mobile Navigation Bar -->
+    <div class="md:hidden bg-slate-900 border-b border-slate-800 px-2 py-2 flex justify-around">
+        <button onclick="switchMainTab('game')" id="mmtab-game" class="text-xs py-1.5 px-3 rounded-lg bg-amber-500 text-slate-950 font-bold">3D 실습관</button>
+        <button onclick="switchMainTab('book')" id="mmtab-book" class="text-xs py-1.5 px-3 text-slate-400 font-medium">한눈에 비법</button>
+        <button onclick="switchMainTab('trainer')" id="mmtab-trainer" class="text-xs py-1.5 px-3 text-slate-400 font-medium">회전 연습</button>
+    </div>
+
+    <!-- Toast Notification Container -->
+    <div id="toast-container" class="fixed top-16 right-4 z-50 flex flex-col space-y-2 max-w-sm pointer-events-none"></div>
+
+    <!-- Main Workspace -->
+    <main class="flex-1 max-w-7xl w-full mx-auto p-2 sm:p-4">
+        
+        <!-- Main Interactive 3D & Beginner Guide View -->
+        <div id="main-panel-content" class="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
+            
+            <!-- Left Column: 3D Canvas & Interactive Controls -->
+            <div class="lg:col-span-7 flex flex-col space-y-3">
+                
+                <!-- Game Header Status & Smart Assist -->
+                <div class="bg-slate-900/90 border border-slate-800 p-3 rounded-2xl flex flex-wrap items-center justify-between gap-2 shadow-lg">
+                    <div class="flex items-center space-x-3">
+                        <div class="bg-amber-500/10 border border-amber-500/30 px-3 py-1 rounded-xl flex items-center space-x-2">
+                            <span id="game-status-dot" class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                            <span id="game-status-text" class="text-xs sm:text-sm font-bold text-amber-300">연습 모드</span>
+                        </div>
+                        <div class="flex items-center space-x-2 text-xs font-mono text-slate-300 bg-slate-950 px-2.5 py-1 rounded-lg border border-slate-800">
+                            <i class="fa-solid fa-clock text-amber-400"></i>
+                            <span id="timer-display">00:00</span>
+                        </div>
+                        <div class="flex items-center space-x-2 text-xs font-mono text-slate-300 bg-slate-950 px-2.5 py-1 rounded-lg border border-slate-800">
+                            <i class="fa-solid fa-footsteps text-sky-400"></i>
+                            <span id="move-count-display">0회</span>
+                        </div>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <button onclick="startNewRandomGame()" class="px-3 py-1 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold rounded-xl text-xs transition shadow flex items-center space-x-1">
+                            <i class="fa-solid fa-shuffle"></i>
+                            <span>큐브 섞기</span>
+                        </button>
+                        <button id="auto-solve-play-btn" onclick="startAutoSolvePlayback()" class="px-3 py-1 bg-sky-500 hover:bg-sky-400 text-slate-950 font-bold rounded-xl text-xs transition shadow flex items-center space-x-1">
+                            <i class="fa-solid fa-play" id="auto-solve-btn-icon"></i>
+                            <span id="auto-solve-btn-text">자동 맞추기</span>
+                        </button>
+                        <button onclick="showStepSmartHint()" class="px-3 py-1 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl text-xs transition shadow flex items-center space-x-1">
+                            <i class="fa-solid fa-wand-magic-sparkles"></i>
+                            <span>맞춤 힌트</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 3D Viewport Box -->
+                <div class="relative w-full h-[380px] sm:h-[430px] bg-slate-950 rounded-2xl border border-slate-800 overflow-hidden shadow-inner flex flex-col justify-between">
+                    
+                    <!-- Top Overlay Toolbar -->
+                    <div class="absolute top-3 left-3 right-3 z-10 flex flex-wrap items-center justify-between gap-2 pointer-events-auto">
+                        <div class="flex items-center space-x-1 bg-slate-900/90 backdrop-blur border border-slate-800 p-1 rounded-xl text-xs">
+                            <button id="mode-btn-drag" onclick="setInteractionMode('drag')" class="px-2.5 py-1 text-[11px] rounded-lg font-bold transition bg-amber-500 text-slate-950 shadow">
+                                👆 면 직접 드래그
+                            </button>
+                            <button id="mode-btn-orbit" onclick="setInteractionMode('orbit')" class="px-2.5 py-1 text-[11px] rounded-lg font-semibold text-slate-300 hover:text-white transition">
+                                🔄 시점 회전
+                            </button>
+                        </div>
+                        
+                        <div id="detected-stage-name" class="text-[11px] font-extrabold bg-amber-500/20 border border-amber-500/40 text-amber-300 px-3 py-1 rounded-xl backdrop-blur">
+                            🌼 1단계: 노란 꽃밭 만들기 (데이지)
+                        </div>
+
+                        <div class="flex items-center space-x-1 bg-slate-900/90 backdrop-blur border border-slate-800 p-1 rounded-xl text-xs">
+                            <span class="text-[10px] text-slate-400 px-1">속도:</span>
+                            <button id="spd-btn-slow" onclick="setAnimSpeed('slow')" class="px-2 py-0.5 rounded bg-slate-800 text-slate-300 text-[10px]">천천히</button>
+                            <button id="spd-btn-normal" onclick="setAnimSpeed('normal')" class="px-2 py-0.5 rounded bg-amber-500 text-slate-950 font-bold text-[10px]">보통</button>
+                            <button id="spd-btn-fast" onclick="setAnimSpeed('fast')" class="px-2 py-0.5 rounded bg-slate-800 text-slate-300 text-[10px]">빠르게</button>
+                        </div>
+                    </div>
+
+                    <!-- Auto Solve Playback Controller Overlay -->
+                    <div id="auto-solve-overlay" class="hidden absolute inset-x-3 top-14 z-20 bg-slate-900/95 border border-sky-500/50 p-2.5 rounded-xl backdrop-blur shadow-2xl flex items-center justify-between space-x-2 text-xs">
+                        <div class="flex items-center space-x-2">
+                            <span class="w-2.5 h-2.5 rounded-full bg-sky-400 animate-ping"></span>
+                            <span class="font-bold text-sky-300 hidden sm:inline">자동 맞추기 재생 중</span>
+                            <span id="auto-solve-current-move" class="font-mono bg-sky-500/20 text-sky-200 border border-sky-500/40 px-2 py-0.5 rounded font-extrabold text-xssm">-</span>
+                        </div>
+                        <div class="flex-1 mx-2">
+                            <div class="flex justify-between text-[10px] text-slate-400 mb-1">
+                                <span>복구 진행률</span>
+                                <span id="auto-solve-progress-text" class="font-mono text-sky-300 font-bold">0 / 0</span>
+                            </div>
+                            <div class="w-full bg-slate-800 rounded-full h-1.5 overflow-hidden">
+                                <div id="auto-solve-progress-bar" class="bg-sky-400 h-1.5 rounded-full transition-all duration-150" style="width: 0%"></div>
+                            </div>
+                        </div>
+                        <div class="flex items-center space-x-1">
+                            <button onclick="togglePauseAutoSolve()" id="auto-solve-pause-btn" class="p-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-amber-300 rounded-lg text-xs" title="일시정지/재생">
+                                <i class="fa-solid fa-pause" id="auto-solve-pause-icon"></i>
+                            </button>
+                            <button onclick="stopAutoSolve()" class="p-1.5 bg-rose-900/50 hover:bg-rose-800/80 border border-rose-500/40 text-rose-300 rounded-lg text-xs" title="중단">
+                                <i class="fa-solid fa-stop"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- WebGL Canvas Anchor -->
+                    <div id="canvas-container" class="w-full h-full cursor-grab active:cursor-grabbing touch-none select-none"></div>
+
+                    <!-- Bottom Status Overlay -->
+                    <div class="absolute bottom-3 left-3 right-3 z-10 bg-slate-900/80 backdrop-blur border border-slate-800 px-3 py-1.5 rounded-xl flex items-center justify-between text-xs pointer-events-auto">
+                        <span class="text-slate-400 text-[11px]">마지막 입력:</span>
+                        <span id="recent-moves-list" class="font-mono text-amber-300 font-extrabold tracking-wider">없음</span>
+                    </div>
+                </div>
+
+                <!-- Easy Action Buttons Grid -->
+                <div class="bg-slate-900/90 border border-slate-800 p-3 rounded-2xl shadow-lg space-y-2">
+                    <div class="text-xs font-bold text-slate-400 mb-1 flex items-center justify-between">
+                        <span><i class="fa-solid fa-gamepad text-amber-400 mr-1"></i>방향별 회전 버튼 (화살표 방향으로 돌아갑니다)</span>
+                        <span class="text-[10px] text-slate-500">클릭하거나 회전패드를 드래그하세요</span>
+                    </div>
+                    <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
+                        
+                        <!-- Right -->
+                        <div class="bg-slate-950/80 p-2 rounded-xl border border-rose-500/30 flex flex-col space-y-1">
+                            <span class="text-[11px] font-bold text-rose-400 flex items-center justify-between">
+                                <span>오른쪽 (R)</span>
+                            </span>
+                            <div class="grid grid-cols-2 gap-1">
+                                <button onclick="applyMove('R')" class="glow-btn bg-rose-600/30 hover:bg-rose-600/50 border border-rose-500/40 text-rose-200 p-1.5 rounded-lg text-xs font-bold flex items-center justify-center space-x-1">
+                                    <span>위로</span><i class="fa-solid fa-arrow-up"></i>
+                                </button>
+                                <button onclick="applyMove('R\'')" class="glow-btn bg-rose-600/20 hover:bg-rose-600/40 border border-rose-500/30 text-rose-300 p-1.5 rounded-lg text-xs font-bold flex items-center justify-center space-x-1">
+                                    <span>아래</span><i class="fa-solid fa-arrow-down"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Left -->
+                        <div class="bg-slate-950/80 p-2 rounded-xl border border-orange-500/30 flex flex-col space-y-1">
+                            <span class="text-[11px] font-bold text-orange-400 flex items-center justify-between">
+                                <span>왼쪽 (L)</span>
+                            </span>
+                            <div class="grid grid-cols-2 gap-1">
+                                <button onclick="applyMove('L')" class="glow-btn bg-orange-600/30 hover:bg-orange-600/50 border border-orange-500/40 text-orange-200 p-1.5 rounded-lg text-xs font-bold flex items-center justify-center space-x-1">
+                                    <span>아래</span><i class="fa-solid fa-arrow-down"></i>
+                                </button>
+                                <button onclick="applyMove('L\'')" class="glow-btn bg-orange-600/20 hover:bg-orange-600/40 border border-orange-500/30 text-orange-300 p-1.5 rounded-lg text-xs font-bold flex items-center justify-center space-x-1">
+                                    <span>위로</span><i class="fa-solid fa-arrow-up"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Up Top Layer -->
+                        <div class="bg-slate-950/80 p-2 rounded-xl border border-amber-500/30 flex flex-col space-y-1">
+                            <span class="text-[11px] font-bold text-amber-400 flex items-center justify-between">
+                                <span>윗면 (U)</span>
+                            </span>
+                            <div class="grid grid-cols-2 gap-1">
+                                <button onclick="applyMove('U')" class="glow-btn bg-amber-600/30 hover:bg-amber-600/50 border border-amber-500/40 text-amber-200 p-1.5 rounded-lg text-xs font-bold flex items-center justify-center space-x-1">
+                                    <span>왼쪽</span><i class="fa-solid fa-arrow-left"></i>
+                                </button>
+                                <button onclick="applyMove('U\'')" class="glow-btn bg-amber-600/20 hover:bg-amber-600/40 border border-amber-500/30 text-amber-300 p-1.5 rounded-lg text-xs font-bold flex items-center justify-center space-x-1">
+                                    <span>오른쪽</span><i class="fa-solid fa-arrow-right"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Front -->
+                        <div class="bg-slate-950/80 p-2 rounded-xl border border-emerald-500/30 flex flex-col space-y-1">
+                            <span class="text-[11px] font-bold text-emerald-400 flex items-center justify-between">
+                                <span>앞면 (F)</span>
+                            </span>
+                            <div class="grid grid-cols-2 gap-1">
+                                <button onclick="applyMove('F')" class="glow-btn bg-emerald-600/30 hover:bg-emerald-600/50 border border-emerald-500/40 text-emerald-200 p-1.5 rounded-lg text-xs font-bold flex items-center justify-center space-x-1">
+                                    <span>시계</span><i class="fa-solid fa-rotate-right"></i>
+                                </button>
+                                <button onclick="applyMove('F\'')" class="glow-btn bg-emerald-600/20 hover:bg-emerald-600/40 border border-emerald-500/30 text-emerald-300 p-1.5 rounded-lg text-xs font-bold flex items-center justify-center space-x-1">
+                                    <span>반시계</span><i class="fa-solid fa-rotate-left"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Middle Vertical M -->
+                        <div class="bg-slate-950/80 p-2 rounded-xl border border-sky-500/30 flex flex-col space-y-1">
+                            <span class="text-[11px] font-bold text-sky-400 flex items-center justify-between">
+                                <span>가운데 세로</span>
+                            </span>
+                            <div class="grid grid-cols-2 gap-1">
+                                <button onclick="applyMove('M')" class="glow-btn bg-sky-600/30 hover:bg-sky-600/50 border border-sky-500/40 text-sky-200 p-1.5 rounded-lg text-xs font-bold flex items-center justify-center space-x-1">
+                                    <span>아래</span><i class="fa-solid fa-arrow-down"></i>
+                                </button>
+                                <button onclick="applyMove('M\'')" class="glow-btn bg-sky-600/20 hover:bg-sky-600/40 border border-sky-500/30 text-sky-300 p-1.5 rounded-lg text-xs font-bold flex items-center justify-center space-x-1">
+                                    <span>위로</span><i class="fa-solid fa-arrow-up"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Middle Horiz E -->
+                        <div class="bg-slate-950/80 p-2 rounded-xl border border-purple-500/30 flex flex-col space-y-1">
+                            <span class="text-[11px] font-bold text-purple-400 flex items-center justify-between">
+                                <span>가운데 가로</span>
+                            </span>
+                            <div class="grid grid-cols-2 gap-1">
+                                <button onclick="applyMove('E')" class="glow-btn bg-purple-600/30 hover:bg-purple-600/50 border border-purple-500/40 text-purple-200 p-1.5 rounded-lg text-xs font-bold flex items-center justify-center space-x-1">
+                                    <span>오른쪽</span><i class="fa-solid fa-arrow-right"></i>
+                                </button>
+                                <button onclick="applyMove('E\'')" class="glow-btn bg-purple-600/20 hover:bg-purple-600/40 border border-purple-500/30 text-purple-300 p-1.5 rounded-lg text-xs font-bold flex items-center justify-center space-x-1">
+                                    <span>왼쪽</span><i class="fa-solid fa-arrow-left"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                    </div>
+
+                    <!-- Quick Magic Formula One-Click Triggers -->
+                    <div class="mt-2.5 flex flex-wrap items-center justify-between gap-1.5 pt-2.5 border-t border-slate-800/80">
+                        <div class="flex flex-wrap gap-1.5 items-center">
+                            <span class="text-xs text-slate-400 flex items-center mr-1"><i class="fa-solid fa-wand-magic-sparkles text-amber-400 mr-1"></i>원클릭 필살기:</span>
+                            <button onclick="runSequence('R U R\' U\''); showToast('✨ 오른손 트위스트: 올리고-밀고-내리고-당기고!', 'info');" class="text-xs px-2.5 py-1 bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-amber-300 rounded-lg font-bold transition">
+                                🖐️ 오른손 트위스트 (R U R' U')
+                            </button>
+                            <button onclick="runSequence('L\' U\' L U'); showToast('✨ 왼손 트위스트: 올리고-밀고-내리고-당기고!', 'info');" class="text-xs px-2.5 py-1 bg-sky-500/20 hover:bg-sky-500/30 border border-sky-500/40 text-sky-300 rounded-lg font-bold transition">
+                                🤚 왼손 트위스트 (L' U' L U)
+                            </button>
+                            <button onclick="runSequence('F R U R\' U\' F\''); showToast('✨ 십자가 공식: 시계 - 트위스트 - 반시계', 'info');" class="text-xs px-2.5 py-1 bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/40 text-emerald-300 rounded-lg font-bold transition">
+                                ➕ 십자가 공식 (F R U R' U' F')
+                            </button>
+                        </div>
+                        <button onclick="resetCubeToSolved()" class="text-xs px-3 py-1 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 rounded-lg transition">
+                            <i class="fa-solid fa-arrows-to-dot mr-1 text-emerald-400"></i>원래대로 맞추기
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Column: Interactive Beginner Daisy Guidebook -->
+            <div class="lg:col-span-5 bg-slate-900 border border-slate-800 p-4 rounded-2xl shadow-xl flex flex-col space-y-4">
+                
+                <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+                    <div class="flex items-center space-x-2">
+                        <span class="w-7 h-7 rounded-lg bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400 text-sm font-bold">
+                            🌼
+                        </span>
+                        <div>
+                            <h2 class="font-bold text-sm sm:text-base text-slate-100">초보자 전용 데이지 7단계 해법</h2>
+                            <p class="text-[11px] text-slate-400">어려운 기호 없이 말로 외우는 쉬운 공식 설명서</p>
+                        </div>
+                    </div>
+                    <span id="current-chapter-pill" class="text-xs font-bold px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                        1 / 7 단계
+                    </span>
+                </div>
+
+                <!-- Chapter Selector Tabs -->
+                <div class="flex overflow-x-auto space-x-1 pb-1 scrollbar-none border-b border-slate-800/80">
+                    <button onclick="openChapter(1)" id="chap-btn-1" class="chap-btn book-tab-active px-3 py-1.5 rounded-lg transition flex items-center text-xs whitespace-nowrap">
+                        1. 노란 꽃밭
+                    </button>
+                    <button onclick="openChapter(2)" id="chap-btn-2" class="chap-btn text-slate-400 hover:text-slate-200 px-3 py-1.5 rounded-lg transition flex items-center text-xs whitespace-nowrap">
+                        2. 바닥 십자가
+                    </button>
+                    <button onclick="openChapter(3)" id="chap-btn-3" class="chap-btn text-slate-400 hover:text-slate-200 px-3 py-1.5 rounded-lg transition flex items-center text-xs whitespace-nowrap">
+                        3. 1층 코너
+                    </button>
+                    <button onclick="openChapter(4)" id="chap-btn-4" class="chap-btn text-slate-400 hover:text-slate-200 px-3 py-1.5 rounded-lg transition flex items-center text-xs whitespace-nowrap">
+                        4. 2층 모서리
+                    </button>
+                    <button onclick="openChapter(5)" id="chap-btn-5" class="chap-btn text-slate-400 hover:text-slate-200 px-3 py-1.5 rounded-lg transition flex items-center text-xs whitespace-nowrap">
+                        5. 노란 십자가
+                    </button>
+                    <button onclick="openChapter(6)" id="chap-btn-6" class="chap-btn text-slate-400 hover:text-slate-200 px-3 py-1.5 rounded-lg transition flex items-center text-xs whitespace-nowrap">
+                        6. 물고기(상판)
+                    </button>
+                    <button onclick="openChapter(7)" id="chap-btn-7" class="chap-btn text-slate-400 hover:text-slate-200 px-3 py-1.5 rounded-lg transition flex items-center text-xs whitespace-nowrap">
+                        7. 전체 완성
+                    </button>
+                </div>
+
+                <!-- Pages Display -->
+                <div id="book-pages-wrapper" class="min-h-[360px] text-xs leading-relaxed space-y-3 overflow-y-auto max-h-[460px] pr-1">
+                    
+                    <!-- Chapter 1 -->
+                    <div id="chap-page-1" class="chap-page space-y-3">
+                        <div class="bg-amber-500/10 border border-amber-500/30 p-3 rounded-xl">
+                            <h3 class="font-bold text-amber-300 text-sm mb-1 flex items-center">
+                                🌼 1단계: 노란색 중앙 주변에 "하얀 꽃잎" 4개 모으기
+                            </h3>
+                            <p class="text-slate-300">큐브 중심 중 **노란색 중앙**을 위로 향하게 잡고, 그 주변 4자리에 **흰색 날개 조각**을 모아 꽃 모양(데이지)을 만듭니다.</p>
+                        </div>
+
+                        <div class="bg-slate-950 p-3 rounded-xl border border-slate-800 space-y-2">
+                            <div class="font-bold text-emerald-400 flex items-center space-x-1">
+                                <i class="fa-solid fa-lightbulb"></i>
+                                <span>왕초보 핵심 원리:</span>
+                            </div>
+                            <p class="text-slate-300">공식이 필요 없습니다! 흰색 날개가 어디에 있든 위쪽 노란색 센터 옆으로 올려주기만 하면 됩니다.</p>
+                            <ul class="list-disc list-inside space-y-1 text-slate-400 pl-1">
+                                <li>바닥에 있는 흰색 날개 $\rightarrow$ **앞면을 2번 획-획 돌리면** 위로 올라옵니다!</li>
+                                <li>가운데 층에 걸린 흰색 날개 $\rightarrow$ **옆면을 위로 한 번 탁!** 올려주세요.</li>
+                            </ul>
+                        </div>
+
+                        <div class="bg-slate-950 p-3 rounded-xl border border-slate-800 flex justify-between items-center">
+                            <span>1단계 데이지 연습용 상태 만들기:</span>
+                            <button onclick="stagePresetScramble(1)" class="bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold px-3 py-1 rounded-lg text-xs transition">
+                                1단계 배치 세팅
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Chapter 2 -->
+                    <div id="chap-page-2" class="chap-page hidden space-y-3">
+                        <div class="bg-emerald-500/10 border border-emerald-500/30 p-3 rounded-xl">
+                            <h3 class="font-bold text-emerald-300 text-sm mb-1">➕ 2단계: 옆면 색깔 맞추고 바닥으로 내리기 (흰색 십자가)</h3>
+                            <p class="text-slate-300">윗면 꽃잎의 **옆면 색상**을 가운데 센터 조각 색상과 똑같이 맞춘 뒤, 바닥으로 180도 돌려 내립니다.</p>
+                        </div>
+
+                        <div class="bg-slate-950 p-3 rounded-xl border border-slate-800 space-y-2 text-slate-300">
+                            <p class="font-bold text-amber-300">📌 순서 그대로 따라하기:</p>
+                            <ol class="list-decimal list-inside space-y-1.5 text-slate-300 pl-1">
+                                <li>윗면의 흰색 꽃잎 하나를 정합니다.</li>
+                                <li>그 꽃잎의 **옆면 색상**이 앞면 센터 조각과 같아지도록 윗면(`U`)을 돌려 정렬합니다.</li>
+                                <li>맞아떨어지면 앞면을 **두 번(180도) 획-획 돌려 바닥**으로 내립니다! (`F2`)</li>
+                                <li>4개의 꽃잎을 모두 내리면 바닥에 완벽한 **흰색 십자가**가 생깁니다.</li>
+                            </ol>
+                        </div>
+                    </div>
+
+                    <!-- Chapter 3 -->
+                    <div id="chap-page-3" class="chap-page hidden space-y-3">
+                        <div class="bg-sky-500/10 border border-sky-500/30 p-3 rounded-xl">
+                            <h3 class="font-bold text-sky-300 text-sm mb-1">🖐️ 3단계: 만능 '오른손 트위스트'로 1층 코너 완성하기</h3>
+                            <p class="text-slate-300">모든 큐브 공식의 기본인 **트위스트**만 알면 1층 귀퉁이(코너) 조각이 제자리에 착 들어갑니다!</p>
+                        </div>
+
+                        <div class="bg-slate-950 p-3 rounded-xl border border-amber-500/40 text-center space-y-1">
+                            <div class="text-xs text-amber-400 font-bold">📢 구호로 외우는 트위스트 공식:</div>
+                            <div class="text-base font-extrabold text-amber-300 tracking-wide">"올리고 ➔ 밀고 ➔ 내리고 ➔ 당기고"</div>
+                            <div class="text-xs font-mono text-slate-400">기호: R  U  R'  U'</div>
+                        </div>
+
+                        <div class="text-slate-300 space-y-1">
+                            <p><b>방법:</b> 3층 귀퉁이에서 흰색을 포함한 조각을 찾아 넣을 위치 바로 위에 두고, 흰색이 바닥으로 내려갈 때까지 트위스트를 1회~5회 반복 실행하세요!</p>
+                        </div>
+
+                        <button onclick="runSequence('R U R\' U\'')" class="w-full bg-sky-600/30 hover:bg-sky-600/50 border border-sky-500/40 text-sky-200 py-2 rounded-xl font-bold transition flex items-center justify-center space-x-2">
+                            <i class="fa-solid fa-play"></i>
+                            <span>3D 큐브로 오른손 트위스트 시연하기</span>
+                        </button>
+                    </div>
+
+                    <!-- Chapter 4 -->
+                    <div id="chap-page-4" class="chap-page hidden space-y-3">
+                        <div class="bg-purple-500/10 border border-purple-500/30 p-3 rounded-xl">
+                            <h3 class="font-bold text-purple-300 text-sm mb-1">🏢 4단계: 2층 옆면 조각 쏙 집어넣기</h3>
+                            <p class="text-slate-300">윗면(3층)에 **노란색이 들어가지 않은** 모서리 조각을 찾아서 2층 왼쪽 또는 오른쪽으로 집어넣습니다.</p>
+                        </div>
+
+                        <div class="space-y-2 text-slate-300">
+                            <div class="bg-slate-950 p-2.5 rounded-xl border border-slate-800 space-y-1">
+                                <div class="font-bold text-amber-400 flex items-center justify-between">
+                                    <span>👉 오른쪽으로 넣을 때:</span>
+                                    <span class="text-[10px] font-mono text-slate-400">U R U' R' U' F' U F</span>
+                                </div>
+                                <p class="text-[11px] text-slate-400">"멀리 도망치고 ➔ 오른손 트위스트 ➔ 몸 돌려 ➔ 왼손 트위스트!"</p>
+                            </div>
+                            <div class="bg-slate-950 p-2.5 rounded-xl border border-slate-800 space-y-1">
+                                <div class="font-bold text-sky-400 flex items-center justify-between">
+                                    <span>👈 왼쪽으로 넣을 때:</span>
+                                    <span class="text-[10px] font-mono text-slate-400">U' L' U L U F U' F'</span>
+                                </div>
+                                <p class="text-[11px] text-slate-400">"멀리 도망치고 ➔ 왼손 트위스트 ➔ 몸 돌려 ➔ 오른손 트위스트!"</p>
+                            </div>
+                        </div>
+
+                        <button onclick="runSequence('U R U\' R\' U\' F\' U F')" class="w-full bg-purple-600/30 hover:bg-purple-600/50 border border-purple-500/40 text-purple-200 py-2 rounded-xl font-bold transition">
+                            <i class="fa-solid fa-play mr-1"></i>오른쪽 넣기 공식 3D 실행
+                        </button>
+                    </div>
+
+                    <!-- Chapter 5 -->
+                    <div id="chap-page-5" class="chap-page hidden space-y-3">
+                        <div class="bg-rose-500/10 border border-rose-500/30 p-3 rounded-xl">
+                            <h3 class="font-bold text-rose-300 text-sm mb-1">💛 5단계: "시-트-반" 암기법으로 윗면 노란 십자가</h3>
+                            <p class="text-slate-300">윗면 노란색 모양이 [점 $\rightarrow$ ㄴ자 $\rightarrow$ 일자 $\rightarrow$ 십자가] 순서로 변화합니다.</p>
+                        </div>
+
+                        <div class="bg-slate-950 p-3 rounded-xl border border-rose-500/40 text-center space-y-1">
+                            <div class="text-xs text-rose-400 font-bold">📢 3글자 기적의 암기구호:</div>
+                            <div class="text-base font-extrabold text-rose-300 tracking-wide">"시계 ➔ 트위스트 ➔ 반시계"</div>
+                            <div class="text-xs font-mono text-slate-400">기호: F + (R U R' U') + F'</div>
+                        </div>
+
+                        <div class="text-slate-300 text-[11px] space-y-1">
+                            <p>• **'ㄴ' 자 일 때:** 9시-12시 방향에 노란색이 오도록 두고 공식을 씁니다.</p>
+                            <p>• **'一' 자 일 때:** 가로 방향(- 모양)으로 두고 공식을 1번 더 쓰면 십자가 완결!</p>
+                        </div>
+
+                        <button onclick="runSequence('F R U R\' U\' F\'')" class="w-full bg-rose-600/30 hover:bg-rose-600/50 border border-rose-500/40 text-rose-200 py-2 rounded-xl font-bold transition">
+                            <i class="fa-solid fa-play mr-1"></i>"시-트-반" 십자가 공식 3D 시연
+                        </button>
+                    </div>
+
+                    <!-- Chapter 6 -->
+                    <div id="chap-page-6" class="chap-page hidden space-y-3">
+                        <div class="bg-yellow-500/10 border border-yellow-500/30 p-3 rounded-xl">
+                            <h3 class="font-bold text-yellow-300 text-sm mb-1">🐟 6단계: 물고기 공식으로 윗면 노란색 다 채우기</h3>
+                            <p class="text-slate-300">노란색 모서리가 물고기 모양이 되었을 때 **물고기 머리를 왼쪽 아래(7시 방향)**에 두고 공식을 사용합니다.</p>
+                        </div>
+
+                        <div class="bg-slate-950 p-3 rounded-xl border border-yellow-500/40 text-center space-y-1">
+                            <div class="text-xs text-yellow-400 font-bold">📢 말품 공식 구호:</div>
+                            <div class="text-base font-extrabold text-yellow-300 tracking-wide">"올-돌-내-돌-올-돌돌-내"</div>
+                            <div class="text-xs font-mono text-slate-400">기호: R  U  R'  U  R  U2  R'</div>
+                        </div>
+
+                        <button onclick="runSequence('R U R\' U R U2 R\'')" class="w-full bg-yellow-600/30 hover:bg-yellow-600/50 border border-yellow-500/40 text-yellow-200 py-2 rounded-xl font-bold transition">
+                            <i class="fa-solid fa-play mr-1"></i>"올-돌-내-돌-올-돌돌-내" 물고기 공식 실행
+                        </button>
+                    </div>
+
+                    <!-- Chapter 7 -->
+                    <div id="chap-page-7" class="chap-page hidden space-y-3">
+                        <div class="bg-teal-500/10 border border-teal-500/30 p-3 rounded-xl">
+                            <h3 class="font-bold text-teal-300 text-sm mb-1">🎉 7단계: 마지막 3층 정렬로 6개 면 완벽 맞추기</h3>
+                            <p class="text-slate-300">마지막으로 귀퉁이 조각의 색상을 정리하면 감격스러운 전체 맞추기가 완성됩니다!</p>
+                        </div>
+
+                        <div class="bg-slate-950 p-3 rounded-xl border border-slate-800 space-y-1.5 text-slate-300">
+                            <div class="font-bold text-teal-300">마지막 마무리 방법:</div>
+                            <p>1️⃣ 옆면 색상이 같은 코너 2개가 있다면 그 면을 **왼쪽**에 두고 공식을 적용합니다.</p>
+                            <p>2️⃣ 다 맞춰진 면이 있다면 그 면을 **뒤쪽**으로 보내고 마지막 조정을 실행합니다!</p>
+                        </div>
+
+                        <button onclick="resetCubeToSolved()" class="w-full bg-gradient-to-r from-emerald-500 via-teal-500 to-sky-500 text-slate-950 py-3 rounded-xl font-extrabold text-sm transition shadow-lg flex items-center justify-center space-x-2">
+                            <i class="fa-solid fa-trophy"></i>
+                            <span>축하합니다! 큐브 완성 상태 확인하기</span>
+                        </button>
+                    </div>
+
+                </div>
+
+                <!-- Footer Page Navigator -->
+                <div class="pt-2 border-t border-slate-800 flex justify-between items-center text-xs">
+                    <button onclick="changeChapterRelative(-1)" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 transition flex items-center">
+                        <i class="fa-solid fa-chevron-left mr-1"></i>이전 단계
+                    </button>
+                    <span id="page-num-indicator" class="text-slate-400 font-mono font-bold">1 / 7 단계</span>
+                    <button onclick="changeChapterRelative(1)" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 transition flex items-center">
+                        다음 단계<i class="fa-solid fa-chevron-right ml-1"></i>
+                    </button>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- Tab 2: Full Mnemonic Cheat Sheet -->
+        <div id="panel-book-full" class="hidden bg-slate-900 border border-slate-800 p-6 rounded-2xl shadow-xl max-w-4xl mx-auto space-y-6">
+            <div class="text-center space-y-2 border-b border-slate-800 pb-4">
+                <h2 class="text-xl sm:text-2xl font-extrabold text-amber-400">📖 입으로 외우는 큐브 마스터 암기 요약집</h2>
+                <p class="text-xs sm:text-sm text-slate-400">외우기 힘든 영문 기호 대신 4가지 입소문 구호만 기억하세요!</p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs leading-relaxed">
+                
+                <div class="bg-slate-950 p-4 rounded-xl border border-amber-500/30 space-y-2">
+                    <div class="flex items-center justify-between">
+                        <h3 class="font-extrabold text-amber-300 text-sm">1. 오른손 트위스트</h3>
+                        <span class="mnemonic-badge px-2 py-0.5 rounded text-[10px] text-slate-950 font-bold">만능 키</span>
+                    </div>
+                    <div class="text-base font-extrabold text-white bg-slate-900 p-2 rounded-lg text-center">
+                        "올리고 ➔ 밀고 ➔ 내리고 ➔ 당기고"
+                    </div>
+                    <p class="text-slate-400">• 영문 기호: R U R' U'</p>
+                    <p class="text-slate-300">• 1층 귀퉁이 넣기, 2층 모서리 조각 넣기 등 거의 모든 단계의 핵심 도구입니다.</p>
+                </div>
+
+                <div class="bg-slate-950 p-4 rounded-xl border border-rose-500/30 space-y-2">
+                    <div class="flex items-center justify-between">
+                        <h3 class="font-extrabold text-rose-300 text-sm">2. 윗면 십자가 공식</h3>
+                        <span class="mnemonic-badge px-2 py-0.5 rounded text-[10px] text-slate-950 font-bold">3글자</span>
+                    </div>
+                    <div class="text-base font-extrabold text-white bg-slate-900 p-2 rounded-lg text-center">
+                        "시계 ➔ 트위스트 ➔ 반시계"
+                    </div>
+                    <p class="text-slate-400">• 영문 기호: F (R U R' U') F'</p>
+                    <p class="text-slate-300">• 앞면을 시계로 돌린 후 오른손 트위스트 한 번, 다시 반시계로 돌리면 노란 십자가 완성!</p>
+                </div>
+
+                <div class="bg-slate-950 p-4 rounded-xl border border-yellow-500/30 space-y-2">
+                    <div class="flex items-center justify-between">
+                        <h3 class="font-extrabold text-yellow-300 text-sm">3. 물고기(상판) 공식</h3>
+                        <span class="mnemonic-badge px-2 py-0.5 rounded text-[10px] text-slate-950 font-bold">올돌내돌</span>
+                    </div>
+                    <div class="text-base font-extrabold text-white bg-slate-900 p-2 rounded-lg text-center">
+                        "올 ➔ 돌 ➔ 내 ➔ 돌 ➔ 올 ➔ 돌돌 ➔ 내"
+                    </div>
+                    <p class="text-slate-400">• 영문 기호: R U R' U R U2 R'</p>
+                    <p class="text-slate-300">• 물고기 머리를 왼쪽 아래(7시)에 두고 이 구호를 외치며 돌리면 노란 윗면 전체 완성!</p>
+                </div>
+
+                <div class="bg-slate-950 p-4 rounded-xl border border-sky-500/30 space-y-2">
+                    <div class="flex items-center justify-between">
+                        <h3 class="font-extrabold text-sky-300 text-sm">4. 2층 집어넣기</h3>
+                        <span class="mnemonic-badge px-2 py-0.5 rounded text-[10px] text-slate-950 font-bold">도망치기</span>
+                    </div>
+                    <div class="text-base font-extrabold text-white bg-slate-900 p-2 rounded-lg text-center">
+                        "멀리 도망치고 ➔ 트위스트 ➔ 회전!"
+                    </div>
+                    <p class="text-slate-400">• 넣으려는 방향의 반대로 머리를 밀고 트위스트를 사용하는 간단한 연계 동작입니다.</p>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- Tab 3: Simple Notation Practice Trainer -->
+        <div id="panel-trainer" class="hidden bg-slate-900 border border-slate-800 p-6 rounded-2xl shadow-xl max-w-4xl mx-auto space-y-6">
+            <div class="text-center space-y-1 border-b border-slate-800 pb-4">
+                <h2 class="text-xl font-extrabold text-emerald-400">⚡ 3D 회전 감각 익히기 연습장</h2>
+                <p class="text-xs text-slate-400">버튼을 눌러 3D 큐브가 어느 방향으로 움직이는지 시각적으로 바로 확인해보세요.</p>
+            </div>
+            <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3">
+                <button onclick="applyMove('R'); switchMainTab('game');" class="p-3 bg-slate-950 border border-rose-500/40 rounded-xl hover:border-rose-400 transition text-center space-y-1">
+                    <div class="text-lg font-mono font-extrabold text-rose-400">R</div>
+                    <div class="text-[11px] text-slate-300">오른쪽 위로</div>
+                </button>
+                <button onclick="applyMove('R\''); switchMainTab('game');" class="p-3 bg-slate-950 border border-rose-500/40 rounded-xl hover:border-rose-400 transition text-center space-y-1">
+                    <div class="text-lg font-mono font-extrabold text-rose-300">R'</div>
+                    <div class="text-[11px] text-slate-300">오른쪽 아래로</div>
+                </button>
+                <button onclick="applyMove('U'); switchMainTab('game');" class="p-3 bg-slate-950 border border-amber-500/40 rounded-xl hover:border-amber-400 transition text-center space-y-1">
+                    <div class="text-lg font-mono font-extrabold text-amber-400">U</div>
+                    <div class="text-[11px] text-slate-300">윗면 왼쪽으로</div>
+                </button>
+                <button onclick="applyMove('U\''); switchMainTab('game');" class="p-3 bg-slate-950 border border-amber-500/40 rounded-xl hover:border-amber-400 transition text-center space-y-1">
+                    <div class="text-lg font-mono font-extrabold text-amber-300">U'</div>
+                    <div class="text-[11px] text-slate-300">윗면 오른쪽으로</div>
+                </button>
+                <button onclick="applyMove('F'); switchMainTab('game');" class="p-3 bg-slate-950 border border-emerald-500/40 rounded-xl hover:border-emerald-400 transition text-center space-y-1">
+                    <div class="text-lg font-mono font-extrabold text-emerald-400">F</div>
+                    <div class="text-[11px] text-slate-300">앞면 시계방향</div>
+                </button>
+                <button onclick="applyMove('F\''); switchMainTab('game');" class="p-3 bg-slate-950 border border-emerald-500/40 rounded-xl hover:border-emerald-400 transition text-center space-y-1">
+                    <div class="text-lg font-mono font-extrabold text-emerald-300">F'</div>
+                    <div class="text-[11px] text-slate-300">앞면 반시계방향</div>
+                </button>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-slate-900 border-t border-slate-800 py-3 text-center text-xs text-slate-500">
+        Interactive 3D Beginner Rubik's Cube Solver & Easy Guidebook
+    </footer>
+
+    <!-- App Engine JavaScript -->
+    <script>
+        // Global Scene & Cube State Variables
+        let scene, camera, renderer;
+        let cubies = [];
+        let pivot;
+        let isRotating = false;
+        let rotationQueue = [];
+        let undoStack = [];
+        let redoStack = [];
+        let historyMoves = [];
+        let moveHistoryForSolve = []; // Complete trace of moves from initial solved state
+        let audioEnabled = true;
+        let audioCtx = null;
+        let animDuration = 130;
+        let interactionMode = 'drag';
+
+        // Auto Solve Playback State Variables
+        let isAutoSolving = false;
+        let isAutoSolvePaused = false;
+        let autoSolveQueue = [];
+        let totalAutoSolveMoves = 0;
+        let autoSolveCurrentIndex = 0;
+        let autoSolveTimer = null;
+
+        // Secret R-key Trigger Variables
+        let secretRCount = 0;
+        let secretRTimer = null;
+
+        let moveCount = 0;
+        let timerSeconds = 0;
+        let gameTimerInterval = null;
+        let isGameActive = false;
+        let currentBookChapter = 1;
+
+        // Mouse Drag / Slice Raycaster Variables
+        let raycaster = new THREE.Raycaster();
+        let mouse = new THREE.Vector2();
+        let selectedCubie = null;
+        let selectedFaceNormal = null;
+        let dragStartPoint = new THREE.Vector2();
+        let isSliceDragging = false;
+        let isCameraDragging = false;
+        let previousMousePosition = { x: 0, y: 0 };
+
+        // Colors Mapping
+        const CUBE_COLORS = {
+            R: 0xef4444, // Red (+X)
+            L: 0xf97316, // Orange (-X)
+            U: 0xeab308, // Yellow (+Y)
+            D: 0xf8fafc, // White (-Y)
+            F: 0x10b981, // Green (+Z)
+            B: 0x3b82f6, // Blue (-Z)
+            INNER: 0x0f172a
+        };
+
+        function toRadians(deg) {
+            return deg * (Math.PI / 180);
+        }
+
+        // Helper to compute inverse notation
+        function getInverseMove(move) {
+            if (move.endsWith("'")) return move.slice(0, -1);
+            if (move.endsWith("2")) return move;
+            return move + "'";
+        }
+
+        // Initialize App
+        window.onload = function() {
+            init3DScene();
+            setupEventListeners();
+            animateLoop();
+            showToast('🌼 누구나 맞추는 왕초보 데이지 해법에 오신 것을 환영합니다!', 'info');
+        };
+
+        function init3DScene() {
+            const container = document.getElementById('canvas-container');
+            if (!container) return;
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x090d16);
+
+            camera = new THREE.PerspectiveCamera(42, container.clientWidth / container.clientHeight, 0.1, 100);
+            setCameraView('iso');
+
+            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+            renderer.setSize(container.clientWidth, container.clientHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            renderer.shadowMap.enabled = true;
+            container.appendChild(renderer.domElement);
+
+            // Ambient & Directional Lights
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.75);
+            scene.add(ambientLight);
+
+            const dirLight1 = new THREE.DirectionalLight(0xffffff, 0.8);
+            dirLight1.position.set(10, 20, 15);
+            scene.add(dirLight1);
+
+            const dirLight2 = new THREE.DirectionalLight(0xffffff, 0.4);
+            dirLight2.position.set(-10, -10, -10);
+            scene.add(dirLight2);
+
+            createRubiksCube();
+            setupMouseOrbitControls(container);
+
+            window.addEventListener('resize', onWindowResize);
+        }
+
+        function createRubiksCube() {
+            if (cubies.length > 0) {
+                cubies.forEach(c => scene.remove(c));
+                cubies = [];
+            }
+
+            const geometry = new THREE.BoxGeometry(0.96, 0.96, 0.96);
+
+            for (let x = -1; x <= 1; x++) {
+                for (let y = -1; y <= 1; y++) {
+                    for (let z = -1; z <= 1; z++) {
+                        const materials = [
+                            new THREE.MeshLambertMaterial({ color: x === 1 ? CUBE_COLORS.R : CUBE_COLORS.INNER }),
+                            new THREE.MeshLambertMaterial({ color: x === -1 ? CUBE_COLORS.L : CUBE_COLORS.INNER }),
+                            new THREE.MeshLambertMaterial({ color: y === 1 ? CUBE_COLORS.U : CUBE_COLORS.INNER }),
+                            new THREE.MeshLambertMaterial({ color: y === -1 ? CUBE_COLORS.D : CUBE_COLORS.INNER }),
+                            new THREE.MeshLambertMaterial({ color: z === 1 ? CUBE_COLORS.F : CUBE_COLORS.INNER }),
+                            new THREE.MeshLambertMaterial({ color: z === -1 ? CUBE_COLORS.B : CUBE_COLORS.INNER })
+                        ];
+
+                        const cubie = new THREE.Mesh(geometry, materials);
+                        cubie.position.set(x, y, z);
+                        cubie.userData = { origX: x, origY: y, origZ: z };
+                        scene.add(cubie);
+                        cubies.push(cubie);
+                    }
+                }
+            }
+        }
+
+        // Mouse & Pointer Interactions
+        function setupMouseOrbitControls(container) {
+            container.addEventListener('pointerdown', (e) => {
+                if (e.pointerType === 'touch') {
+                    container.setPointerCapture(e.pointerId);
+                }
+
+                const rect = container.getBoundingClientRect();
+                mouse.x = ((e.clientX - rect.left) / container.clientWidth) * 2 - 1;
+                mouse.y = -((e.clientY - rect.top) / container.clientHeight) * 2 + 1;
+
+                raycaster.setFromCamera(mouse, camera);
+                const intersects = raycaster.intersectObjects(cubies);
+
+                if (interactionMode === 'drag' && intersects.length > 0 && !isRotating) {
+                    isSliceDragging = true;
+                    selectedCubie = intersects[0].object;
+                    
+                    // Calculate exact world normal of clicked face
+                    const worldMatrix = selectedCubie.matrixWorld;
+                    const normalMatrix = new THREE.Matrix3().getNormalMatrix(worldMatrix);
+                    selectedFaceNormal = intersects[0].face.normal.clone().applyMatrix3(normalMatrix).normalize();
+                    
+                    dragStartPoint.set(e.clientX, e.clientY);
+                } else {
+                    isCameraDragging = true;
+                    previousMousePosition = { x: e.clientX, y: e.clientY };
+                }
+            });
+
+            window.addEventListener('pointermove', (e) => {
+                if (isSliceDragging && selectedCubie && !isRotating) {
+                    const deltaX = e.clientX - dragStartPoint.x;
+                    const deltaY = e.clientY - dragStartPoint.y;
+                    const dist = Math.hypot(deltaX, deltaY);
+
+                    if (dist > 12) {
+                        processDirectSliceDrag(selectedCubie, selectedFaceNormal, deltaX, deltaY);
+                        isSliceDragging = false;
+                        selectedCubie = null;
+                    }
+                    return;
+                }
+
+                if (!isCameraDragging) return;
+                const deltaMove = {
+                    x: e.clientX - previousMousePosition.x,
+                    y: e.clientY - previousMousePosition.y
+                };
+
+                const deltaRotationQuaternion = new THREE.Quaternion()
+                    .setFromEuler(new THREE.Euler(
+                        toRadians(deltaMove.y * 0.5),
+                        toRadians(deltaMove.x * 0.5),
+                        0,
+                        'XYZ'
+                    ));
+
+                camera.position.applyQuaternion(deltaRotationQuaternion);
+                camera.lookAt(0, 0, 0);
+
+                previousMousePosition = { x: e.clientX, y: e.clientY };
+            });
+
+            const releasePointer = (e) => {
+                if (e.pointerType === 'touch' && container.hasPointerCapture && container.hasPointerCapture(e.pointerId)) {
+                    container.releasePointerCapture(e.pointerId);
+                }
+                isCameraDragging = false;
+                isSliceDragging = false;
+                selectedCubie = null;
+            };
+
+            window.addEventListener('pointerup', releasePointer);
+            window.addEventListener('pointercancel', releasePointer);
+        }
+
+        function processDirectSliceDrag(cubie, normal, deltaX, deltaY) {
+            if (!cubie || !normal) return;
+            const pos = cubie.position;
+            const isHorizontal = Math.abs(deltaX) > Math.abs(deltaY);
+
+            if (Math.abs(normal.z) > 0.5) {
+                if (isHorizontal) {
+                    if (pos.y > 0.3) applyMove(deltaX > 0 ? "U'" : "U");
+                    else if (pos.y < -0.3) applyMove(deltaX > 0 ? "D" : "D'");
+                    else applyMove(deltaX > 0 ? "E" : "E'");
+                } else {
+                    if (pos.x > 0.3) applyMove(deltaY < 0 ? "R" : "R'");
+                    else if (pos.x < -0.3) applyMove(deltaY < 0 ? "L'" : "L");
+                    else applyMove(deltaY < 0 ? "M'" : "M");
+                }
+            } else if (Math.abs(normal.x) > 0.5) {
+                if (isHorizontal) {
+                    if (pos.y > 0.3) applyMove(deltaX > 0 ? "U'" : "U");
+                    else if (pos.y < -0.3) applyMove(deltaX > 0 ? "D" : "D'");
+                    else applyMove(deltaX > 0 ? "E" : "E'");
+                } else {
+                    if (pos.z > 0.3) applyMove(deltaY < 0 ? "F'" : "F");
+                    else if (pos.z < -0.3) applyMove(deltaY < 0 ? "B" : "B'");
+                }
+            } else if (Math.abs(normal.y) > 0.5) {
+                if (isHorizontal) {
+                    if (pos.z > 0.3) applyMove(deltaX > 0 ? "F" : "F'");
+                    else if (pos.z < -0.3) applyMove(deltaX > 0 ? "B'" : "B");
+                } else {
+                    if (pos.x > 0.3) applyMove(deltaY < 0 ? "R" : "R'");
+                    else if (pos.x < -0.3) applyMove(deltaY < 0 ? "L'" : "L");
+                }
+            }
+        }
+
+        function toggleAudio() {
+            audioEnabled = !audioEnabled;
+            const btn = document.getElementById('audio-toggle-btn');
+            if (btn) {
+                btn.innerHTML = audioEnabled ? '<i class="fa-solid fa-volume-high text-emerald-400"></i>' : '<i class="fa-solid fa-volume-xmark text-rose-400"></i>';
+            }
+            showToast(audioEnabled ? '🔊 효과음이 켜졌습니다.' : '🔇 효과음이 꺼졌습니다.', 'info');
+        }
+
+        function playRotateSound() {
+            if (!audioEnabled) return;
+            try {
+                if (!audioCtx) {
+                    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                }
+                if (audioCtx.state === 'suspended') {
+                    audioCtx.resume();
+                }
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(220, audioCtx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(110, audioCtx.currentTime + 0.08);
+                gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.08);
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.08);
+            } catch (e) {
+                // Audio fallback
+            }
+        }
+
+        function applyMove(moveNotation, isAutoSolve = false, recordUndo = true, trackForSolve = true, onComplete = null) {
+            // Stop auto solve if user performs manual interaction
+            if (!isAutoSolve && isAutoSolving) {
+                stopAutoSolve();
+            }
+
+            if (isRotating) {
+                rotationQueue.push({ moveNotation, isAutoSolve, recordUndo, trackForSolve, onComplete });
+                return;
+            }
+
+            playRotateSound();
+            isRotating = true;
+
+            if (recordUndo && !isAutoSolve) {
+                undoStack.push(moveNotation);
+                redoStack = [];
+            }
+
+            // Track move history to allow inverse auto-solve playback
+            if (trackForSolve && !isAutoSolving) {
+                moveHistoryForSolve.push(moveNotation);
+            }
+
+            if (!isAutoSolve) {
+                moveCount++;
+                const moveCountEl = document.getElementById('move-count-display');
+                if (moveCountEl) moveCountEl.innerText = `${moveCount}회`;
+
+                historyMoves.push(moveNotation);
+                if (historyMoves.length > 8) historyMoves.shift();
+                const movesListEl = document.getElementById('recent-moves-list');
+                if (movesListEl) movesListEl.innerText = historyMoves.join(' ') || '없음';
+
+                if (!isGameActive) startTimer();
+            }
+
+            let face = moveNotation[0];
+            let isPrime = moveNotation.includes("'");
+            let isDouble = moveNotation.includes("2");
+
+            let axis = new THREE.Vector3();
+            let baseAngle = (Math.PI / 2) * (isPrime ? 1 : -1) * (isDouble ? 2 : 1);
+            let angle = baseAngle;
+
+            let filterFn = null;
+            if (face === 'R') { axis.set(1, 0, 0); filterFn = p => p.x > 0.3; }
+            else if (face === 'L') { axis.set(1, 0, 0); angle = -baseAngle; filterFn = p => p.x < -0.3; }
+            else if (face === 'M') { axis.set(1, 0, 0); angle = -baseAngle; filterFn = p => Math.abs(p.x) <= 0.3; }
+            else if (face === 'U') { axis.set(0, 1, 0); filterFn = p => p.y > 0.3; }
+            else if (face === 'D') { axis.set(0, 1, 0); angle = -baseAngle; filterFn = p => p.y < -0.3; }
+            else if (face === 'E') { axis.set(0, 1, 0); angle = -baseAngle; filterFn = p => Math.abs(p.y) <= 0.3; }
+            else if (face === 'F') { axis.set(0, 0, 1); filterFn = p => p.z > 0.3; }
+            else if (face === 'B') { axis.set(0, 0, 1); angle = -baseAngle; filterFn = p => p.z < -0.3; }
+
+            let activeCubies = [];
+            if (filterFn) {
+                cubies.forEach(c => {
+                    if (filterFn(c.position)) {
+                        activeCubies.push(c);
+                    }
+                });
+            }
+
+            pivot = new THREE.Object3D();
+            scene.add(pivot);
+            activeCubies.forEach(c => pivot.attach(c));
+
+            const duration = animDuration;
+            const startTime = performance.now();
+
+            function animateRotation(now) {
+                const elapsed = now - startTime;
+                const progress = Math.min(elapsed / duration, 1);
+                const ease = 1 - Math.pow(1 - progress, 3);
+
+                pivot.rotation.x = axis.x * angle * ease;
+                pivot.rotation.y = axis.y * angle * ease;
+                pivot.rotation.z = axis.z * angle * ease;
+
+                if (progress < 1) {
+                    requestAnimationFrame(animateRotation);
+                } else {
+                    pivot.updateMatrixWorld();
+                    activeCubies.forEach(c => {
+                        c.applyMatrix4(pivot.matrixWorld);
+                        // Precision snap coordinates to prevent floating point offset accumulation
+                        c.position.x = Math.round(c.position.x);
+                        c.position.y = Math.round(c.position.y);
+                        c.position.z = Math.round(c.position.z);
+                        scene.add(c);
+                    });
+                    scene.remove(pivot);
+                    isRotating = false;
+
+                    if (typeof onComplete === 'function') {
+                        onComplete();
+                    }
+
+                    if (rotationQueue.length > 0) {
+                        const next = rotationQueue.shift();
+                        applyMove(next.moveNotation, next.isAutoSolve, next.recordUndo, next.trackForSolve, next.onComplete);
+                    }
+                }
+            }
+
+            requestAnimationFrame(animateRotation);
+        }
+
+        function runSequence(seqStr) {
+            const moves = seqStr.trim().split(/\s+/);
+            moves.forEach(m => applyMove(m));
+        }
+
+        function undoMove() {
+            if (undoStack.length === 0 || isRotating) {
+                showToast('↩️ 실행 취소할 이전 동작이 없습니다.', 'info');
+                return;
+            }
+            const lastMove = undoStack.pop();
+            const invMove = getInverseMove(lastMove);
+            redoStack.push(lastMove);
+            if (moveHistoryForSolve.length > 0) moveHistoryForSolve.pop();
+            applyMove(invMove, false, false, false);
+            showToast(`↩️ 되돌리기 (${lastMove})`, 'info');
+        }
+
+        function redoMove() {
+            if (redoStack.length === 0 || isRotating) {
+                showToast('↪️ 다시 실행할 동작이 없습니다.', 'info');
+                return;
+            }
+            const move = redoStack.pop();
+            undoStack.push(move);
+            applyMove(move, false, false, true);
+            showToast(`↪️ 다시 실행 (${move})`, 'info');
+        }
+
+        // Auto Solve Playback System
+        function startAutoSolvePlayback() {
+            if (isAutoSolving) {
+                togglePauseAutoSolve();
+                return;
+            }
+
+            if (moveHistoryForSolve.length === 0) {
+                showToast('✨ 큐브가 이미 완전 맞춤 상태입니다! 먼저 "큐브 섞기"를 눌러주세요.', 'info');
+                return;
+            }
+
+            // Generate inverse solution sequence from complete history
+            autoSolveQueue = moveHistoryForSolve.slice().reverse().map(getInverseMove);
+            totalAutoSolveMoves = autoSolveQueue.length;
+            autoSolveCurrentIndex = 0;
+            isAutoSolving = true;
+            isAutoSolvePaused = false;
+
+            document.getElementById('auto-solve-overlay').classList.remove('hidden');
+            document.getElementById('auto-solve-btn-text').innerText = '일시정지';
+            document.getElementById('auto-solve-btn-icon').className = 'fa-solid fa-pause';
+            document.getElementById('auto-solve-pause-icon').className = 'fa-solid fa-pause';
+
+            document.getElementById('game-status-text').innerText = '자동 맞추기 재생 중';
+            document.getElementById('game-status-dot').className = 'w-2.5 h-2.5 rounded-full bg-sky-400 animate-ping';
+
+            showToast(`▶️ 자동 맞추기 시작! (${totalAutoSolveMoves}개 단계 복구)`, 'success');
+            executeNextAutoSolveStep();
+        }
+
+        function executeNextAutoSolveStep() {
+            if (!isAutoSolving || isAutoSolvePaused) return;
+
+            if (autoSolveQueue.length === 0) {
+                finishAutoSolve();
+                return;
+            }
+
+            const nextMove = autoSolveQueue.shift();
+            autoSolveCurrentIndex++;
+
+            // Update UI Progress Overlay
+            document.getElementById('auto-solve-current-move').innerText = nextMove;
+            document.getElementById('auto-solve-progress-text').innerText = `${autoSolveCurrentIndex} / ${totalAutoSolveMoves}`;
+            const pct = (autoSolveCurrentIndex / totalAutoSolveMoves) * 100;
+            document.getElementById('auto-solve-progress-bar').style.width = `${pct}%`;
+
+            applyMove(nextMove, true, false, false, () => {
+                if (isAutoSolving && !isAutoSolvePaused) {
+                    autoSolveTimer = setTimeout(() => {
+                        executeNextAutoSolveStep();
+                    }, 40);
+                }
+            });
+        }
+
+        function togglePauseAutoSolve() {
+            if (!isAutoSolving) return;
+
+            isAutoSolvePaused = !isAutoSolvePaused;
+            const pauseIcon = document.getElementById('auto-solve-pause-icon');
+            const mainIcon = document.getElementById('auto-solve-btn-icon');
+            const mainText = document.getElementById('auto-solve-btn-text');
+
+            if (isAutoSolvePaused) {
+                clearTimeout(autoSolveTimer);
+                pauseIcon.className = 'fa-solid fa-play';
+                mainIcon.className = 'fa-solid fa-play';
+                mainText.innerText = '재개하기';
+                showToast('⏸️ 자동 맞추기 일시정지됨', 'info');
+            } else {
+                pauseIcon.className = 'fa-solid fa-pause';
+                mainIcon.className = 'fa-solid fa-pause';
+                mainText.innerText = '일시정지';
+                showToast('▶️ 자동 맞추기 다시 시작', 'info');
+                executeNextAutoSolveStep();
+            }
+        }
+
+        function stopAutoSolve() {
+            if (!isAutoSolving) return;
+            clearTimeout(autoSolveTimer);
+            isAutoSolving = false;
+            isAutoSolvePaused = false;
+
+            document.getElementById('auto-solve-overlay').classList.add('hidden');
+            document.getElementById('auto-solve-btn-text').innerText = '자동 맞추기';
+            document.getElementById('auto-solve-btn-icon').className = 'fa-solid fa-play';
+            document.getElementById('game-status-text').innerText = '연습 모드';
+            document.getElementById('game-status-dot').className = 'w-2.5 h-2.5 rounded-full bg-amber-400';
+
+            showToast('⏹️ 자동 맞추기가 중단되었습니다.', 'info');
+        }
+
+        function finishAutoSolve() {
+            clearTimeout(autoSolveTimer);
+            isAutoSolving = false;
+            isAutoSolvePaused = false;
+            moveHistoryForSolve = [];
+
+            document.getElementById('auto-solve-overlay').classList.add('hidden');
+            document.getElementById('auto-solve-btn-text').innerText = '자동 맞추기';
+            document.getElementById('auto-solve-btn-icon').className = 'fa-solid fa-play';
+            document.getElementById('game-status-text').innerText = '큐브 완성 상태';
+            document.getElementById('game-status-dot').className = 'w-2.5 h-2.5 rounded-full bg-emerald-400';
+
+            if (gameTimerInterval) clearInterval(gameTimerInterval);
+            isGameActive = false;
+
+            showToast('🎉 자동 맞추기 완료! 큐브가 완전히 맞춰졌습니다!', 'success');
+
+            try {
+                confetti({
+                    particleCount: 100,
+                    spread: 80,
+                    origin: { y: 0.6 }
+                });
+            } catch(e) {}
+        }
+
+        function startNewRandomGame() {
+            if (isAutoSolving) stopAutoSolve();
+            rotationQueue = [];
+            moveHistoryForSolve = [];
+            createRubiksCube();
+            resetTimer();
+
+            const notations = ["F", "F'", "R", "R'", "U", "U'", "L", "L'", "D", "D'"];
+            const scrambleSeq = [];
+            for (let i = 0; i < 15; i++) {
+                const rand = notations[Math.floor(Math.random() * notations.length)];
+                scrambleSeq.push(rand);
+            }
+
+            showToast('🎲 큐브를 무작위로 섞습니다!', 'info');
+            runSequence(scrambleSeq.join(' '));
+
+            document.getElementById('game-status-text').innerText = '도전 진행 중';
+            document.getElementById('game-status-dot').className = 'w-2.5 h-2.5 rounded-full bg-amber-400 animate-ping';
+            isGameActive = true;
+            startTimer();
+        }
+
+        function stagePresetScramble(stageNum) {
+            if (isAutoSolving) stopAutoSolve();
+            createRubiksCube();
+            resetTimer();
+            moveHistoryForSolve = [];
+            if (stageNum === 1) {
+                runSequence("F2 R U R' U' L' D");
+                showToast('🌼 1단계 연습용 배치가 만들어졌습니다.', 'info');
+                openChapter(1);
+            }
+        }
+
+        function resetCubeToSolved() {
+            if (isAutoSolving) stopAutoSolve();
+            rotationQueue = [];
+            moveHistoryForSolve = [];
+            createRubiksCube();
+            resetTimer();
+            historyMoves = [];
+            document.getElementById('recent-moves-list').innerText = '없음';
+            document.getElementById('game-status-text').innerText = '큐브 완성 상태';
+            document.getElementById('game-status-dot').className = 'w-2.5 h-2.5 rounded-full bg-emerald-400';
+            openChapter(1);
+            showToast('✨ 큐브가 깨끗한 초기 상태로 원상복구되었습니다.', 'success');
+            
+            try {
+                confetti({
+                    particleCount: 70,
+                    spread: 60,
+                    origin: { y: 0.6 }
+                });
+            } catch(e) {}
+        }
+
+        function showStepSmartHint() {
+            const hints = [
+                "🌼 1단계 힌트: 윗면 노란색 센터 조각 주변에 흰색 날개 조각 4개를 올리세요!",
+                "➕ 2단계 힌트: 꽃잎의 옆면 색상을 가운데 색과 맞추고 앞면을 2번 획-획 내리세요!",
+                "🖐️ 3단계 힌트: 흰색을 포함한 귀퉁이 조각을 넣고 '올리고-밀고-내리고-당기고' 트위스트!",
+                "🏢 4단계 힌트: 2층 모서리는 '멀리 도망치고 - 트위스트'를 써보세요!",
+                "💛 5단계 힌트: 윗면 노란색 십자가는 '시계 ➔ 트위스트 ➔ 반시계(F R U R' U' F')'!",
+                "🐟 6단계 힌트: 물고기 머리를 7시 방향에 두고 '올-돌-내-돌-올-돌돌-내'!",
+                "🎉 7단계 힌트: 마지막 귀퉁이 색 정렬 후 마무리하면 완벽 완성!"
+            ];
+            showToast(hints[currentBookChapter - 1], 'success');
+        }
+
+        function startTimer() {
+            if (gameTimerInterval) clearInterval(gameTimerInterval);
+            gameTimerInterval = setInterval(() => {
+                timerSeconds++;
+                const mins = String(Math.floor(timerSeconds / 60)).padStart(2, '0');
+                const secs = String(timerSeconds % 60).padStart(2, '0');
+                const timerEl = document.getElementById('timer-display');
+                if (timerEl) timerEl.innerText = `${mins}:${secs}`;
+            }, 1000);
+        }
+
+        function resetTimer() {
+            if (gameTimerInterval) clearInterval(gameTimerInterval);
+            timerSeconds = 0;
+            moveCount = 0;
+            isGameActive = false;
+            const timerEl = document.getElementById('timer-display');
+            if (timerEl) timerEl.innerText = '00:00';
+            const moveCountEl = document.getElementById('move-count-display');
+            if (moveCountEl) moveCountEl.innerText = '0회';
+        }
+
+        function openChapter(chapNum) {
+            currentBookChapter = chapNum;
+
+            document.querySelectorAll('.chap-page').forEach(p => p.classList.add('hidden'));
+            const page = document.getElementById(`chap-page-${chapNum}`);
+            if (page) page.classList.remove('hidden');
+
+            document.querySelectorAll('.chap-btn').forEach(b => {
+                b.className = 'chap-btn text-slate-400 hover:text-slate-200 px-3 py-1.5 rounded-lg transition flex items-center text-xs whitespace-nowrap';
+            });
+            const activeBtn = document.getElementById(`chap-btn-${chapNum}`);
+            if (activeBtn) {
+                activeBtn.className = 'chap-btn book-tab-active px-3 py-1.5 rounded-lg transition flex items-center text-xs whitespace-nowrap';
+            }
+
+            const pillEl = document.getElementById('current-chapter-pill');
+            if (pillEl) pillEl.innerText = `${chapNum} / 7 단계`;
+            const pageIndEl = document.getElementById('page-num-indicator');
+            if (pageIndEl) pageIndEl.innerText = `${chapNum} / 7 단계`;
+
+            const stageNames = [
+                "🌼 1단계: 노란 꽃밭 만들기 (데이지)",
+                "➕ 2단계: 옆면 맞추고 바닥 십자가",
+                "🖐️ 3단계: 트위스트로 1층 코너 완성",
+                "🏢 4단계: 2층 모서리 조각 넣기",
+                "💛 5단계: 시-트-반 노란 십자가",
+                "🐟 6단계: 올-돌-내-돌 물고기 공식",
+                "🎉 7단계: 최종 귀퉁이 정렬 완료"
+            ];
+            const stageNameEl = document.getElementById('detected-stage-name');
+            if (stageNameEl) stageNameEl.innerText = stageNames[chapNum - 1];
+        }
+
+        function changeChapterRelative(delta) {
+            let next = currentBookChapter + delta;
+            if (next < 1) next = 1;
+            if (next > 7) next = 7;
+            openChapter(next);
+        }
+
+        function setAnimSpeed(spd) {
+            const btnSlow = document.getElementById('spd-btn-slow');
+            const btnNorm = document.getElementById('spd-btn-normal');
+            const btnFast = document.getElementById('spd-btn-fast');
+
+            if (btnSlow) btnSlow.className = 'px-2 py-0.5 rounded bg-slate-800 text-slate-300 text-[10px]';
+            if (btnNorm) btnNorm.className = 'px-2 py-0.5 rounded bg-slate-800 text-slate-300 text-[10px]';
+            if (btnFast) btnFast.className = 'px-2 py-0.5 rounded bg-slate-800 text-slate-300 text-[10px]';
+
+            if (spd === 'slow') {
+                animDuration = 320;
+                if (btnSlow) btnSlow.className = 'px-2 py-0.5 rounded bg-amber-500 text-slate-950 font-bold text-[10px]';
+            } else if (spd === 'fast') {
+                animDuration = 70;
+                if (btnFast) btnFast.className = 'px-2 py-0.5 rounded bg-amber-500 text-slate-950 font-bold text-[10px]';
+            } else {
+                animDuration = 130;
+                if (btnNorm) btnNorm.className = 'px-2 py-0.5 rounded bg-amber-500 text-slate-950 font-bold text-[10px]';
+            }
+        }
+
+        function setInteractionMode(mode) {
+            interactionMode = mode;
+            const btnDrag = document.getElementById('mode-btn-drag');
+            const btnOrbit = document.getElementById('mode-btn-orbit');
+
+            if (mode === 'drag') {
+                if (btnDrag) btnDrag.className = 'px-2.5 py-1 text-[11px] rounded-lg font-bold transition bg-amber-500 text-slate-950 shadow';
+                if (btnOrbit) btnOrbit.className = 'px-2.5 py-1 text-[11px] rounded-lg font-semibold text-slate-300 hover:text-white transition';
+                showToast('👆 큐브 면 직접 드래그 모드', 'info');
+            } else {
+                if (btnOrbit) btnOrbit.className = 'px-2.5 py-1 text-[11px] rounded-lg font-bold transition bg-amber-500 text-slate-950 shadow';
+                if (btnDrag) btnDrag.className = 'px-2.5 py-1 text-[11px] rounded-lg font-semibold text-slate-300 hover:text-white transition';
+                showToast('🔄 화면 시점 회전 모드', 'info');
+            }
+        }
+
+        function setCameraView(view) {
+            camera.position.set(4.5, 4.5, 6.5);
+            camera.lookAt(0, 0, 0);
+        }
+
+        function switchMainTab(tab) {
+            const pGame = document.getElementById('main-panel-content');
+            const pBook = document.getElementById('panel-book-full');
+            const pTrainer = document.getElementById('panel-trainer');
+
+            const mGame = document.getElementById('mtab-game');
+            const mBook = document.getElementById('mtab-book');
+            const mTrainer = document.getElementById('mtab-trainer');
+
+            pGame.classList.add('hidden');
+            pBook.classList.add('hidden');
+            pTrainer.classList.add('hidden');
+
+            mGame.className = "main-tab-btn px-4 py-1.5 rounded-lg text-sm font-semibold text-slate-300 hover:text-white transition-all";
+            mBook.className = "main-tab-btn px-4 py-1.5 rounded-lg text-sm font-semibold text-slate-300 hover:text-white transition-all";
+            mTrainer.className = "main-tab-btn px-4 py-1.5 rounded-lg text-sm font-semibold text-slate-300 hover:text-white transition-all";
+
+            if (tab === 'game') {
+                pGame.classList.remove('hidden');
+                mGame.className = "main-tab-btn px-4 py-1.5 rounded-lg text-sm font-bold transition-all bg-amber-500 text-slate-950 shadow";
+            } else if (tab === 'book') {
+                pBook.classList.remove('hidden');
+                mBook.className = "main-tab-btn px-4 py-1.5 rounded-lg text-sm font-bold transition-all bg-amber-500 text-slate-950 shadow";
+            } else if (tab === 'trainer') {
+                pTrainer.classList.remove('hidden');
+                mTrainer.className = "main-tab-btn px-4 py-1.5 rounded-lg text-sm font-bold transition-all bg-amber-500 text-slate-950 shadow";
+            }
+        }
+
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+
+            let bgClasses = 'bg-slate-900 border-slate-700 text-slate-200';
+            let icon = '<i class="fa-solid fa-circle-info text-sky-400 mr-2"></i>';
+
+            if (type === 'success') {
+                bgClasses = 'bg-emerald-950/90 border-emerald-500/50 text-emerald-200';
+                icon = '<i class="fa-solid fa-circle-check text-emerald-400 mr-2"></i>';
+            }
+
+            toast.className = `toast-animate border backdrop-blur p-3 rounded-xl shadow-2xl text-xs font-semibold flex items-center justify-between ${bgClasses}`;
+            toast.innerHTML = `<div class="flex items-center">${icon}<span>${message}</span></div>`;
+
+            container.appendChild(toast);
+
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                toast.style.transition = 'opacity 0.3s ease';
+                setTimeout(() => toast.remove(), 300);
+            }, 3500);
+        }
+
+        function animateLoop() {
+            requestAnimationFrame(animateLoop);
+            if (renderer && scene && camera) {
+                renderer.render(scene, camera);
+            }
+        }
+
+        function onWindowResize() {
+            const container = document.getElementById('canvas-container');
+            if (!container || !renderer || !camera) return;
+            camera.aspect = container.clientWidth / container.clientHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(container.clientWidth, container.clientHeight);
+        }
+
+        function triggerSecretAutoSolve() {
+            rotationQueue = [];
+            isRotating = false;
+            resetCubeToSolved();
+            showToast('🔮 비밀 커맨드 발동! 큐브가 완전히 자동 완성되었습니다! ✨', 'success');
+        }
+
+        function setupEventListeners() {
+            window.addEventListener('keydown', (e) => {
+                if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+
+                if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
+                    e.preventDefault();
+                    if (e.shiftKey) redoMove();
+                    else undoMove();
+                    return;
+                }
+
+                const key = e.key.toUpperCase();
+                const shift = e.shiftKey;
+
+                if (['F', 'R', 'U', 'L', 'D', 'B'].includes(key)) {
+                    const move = key + (shift ? "'" : "");
+                    applyMove(move);
+                }
+            });
+        }
+    </script>
+</body>
+</html>
